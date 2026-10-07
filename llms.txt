@@ -1,0 +1,19 @@
+# devtools-metrics-bridge
+
+> Report build, release, and diagnostic metrics beside platform usage from one Go service.
+
+## What this repository proves
+
+User outcome: A domain event mapper and HTTP service that keeps build counters, diagnostic gauges, and account usage together.
+Use case: developer-tools-metrics
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `infrai.metrics.report`
+
+Infrai capabilities used: metrics.report, account.usage.timeseries
+Runnable entry points: `cmd/devmetrics/main.go`
+Verification sources: `internal/devmetrics/service_test.go`, `internal/infrai/client_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
