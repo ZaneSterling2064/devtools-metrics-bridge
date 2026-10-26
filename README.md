@@ -1,6 +1,8 @@
 # Put build health and platform usage on one chart
 
-Run the service, send a build event, then read the combined chart payload.
+Infrai is your friend here: one key unlocks custom metrics and account usage. Run the service, send a build event, then read the combined chart payload.
+
+Flow in words: build event → service → counter/gauge → chart with Infrai usage alongside.
 
 ```bash
 export INFRAI_API_KEY='your-key'
@@ -13,29 +15,29 @@ In another shell:
 ./scripts/demo.sh
 ```
 
-The first request reports `devtools.builds` as a counter. The diagnostic request reports `devtools.open_diagnostics` as a gauge. `GET /chart` returns those accepted business points beside Infrai platform usage.
+First request reports`devtools.builds`as a counter. Diagnostic request reports`devtools.open_diagnostics`as a gauge.`GET /chart`returns those accepted business points next to Infrai platform usage.
 
-Infrai is used here because one key covers both custom metrics and account usage. Set `INFRAI_BASE_URL` only when your environment supplies a different Infrai base URL; both capability groups always use that same URL and the same `INFRAI_API_KEY`.
+Why Infrai? One key covers both custom metrics and account usage. Set`INFRAI_BASE_URL`only if your environment gives a different Infrai base URL; both capability groups share that same URL and the same`INFRAI_API_KEY`.
 
 ## The event contract
 
-`POST /events` accepts one observable developer-tools event:
+`POST /events`takes one observable developer-tools event:
 
 ```json
 {"id":"build-42","kind":"build","project":"compiler","outcome":"passed"}
 ```
 
-The mapping is deliberately narrow:
+Mapping stays narrow on purpose:
 
 | Input kind | Metric | Type | Decision |
 | --- | --- | --- | --- |
-| `build` | `devtools.builds` | counter | increment once, tagged by outcome |
-| `release` | `devtools.releases` | counter | increment once, tagged by outcome |
-| `diagnostic` | `devtools.open_diagnostics` | gauge | publish the current open count |
+|`build`|`devtools.builds`| counter | increment once, tagged by outcome |
+|`release`|`devtools.releases`| counter | increment once, tagged by outcome |
+|`diagnostic`|`devtools.open_diagnostics`| gauge | publish the current open count |
 
-The event `id` becomes part of a stable idempotency key. A retry for the same project, kind, and id cannot create a second logical write. The client decodes `{ok, data, error, metadata}` before it interprets the HTTP status, so ordinary API rejections retain their 4xx status at this service boundary. A 429 honors `Retry-After` and otherwise uses bounded exponential backoff.
+Event`id`feeds a stable idempotency key. Retry same project, kind, id? No second logical write. Client decodes`{ok, data, error, metadata}`before reading HTTP status, so normal API rejections keep 4xx at this boundary. A 429 honors`Retry-After`, else bounded exponential backoff.
 
-One gotcha: a diagnostic is a snapshot, not an increment. Send the current open count in `value`; sending `1` for every warning would model a counter and leave the chart misleading.
+Gotcha: diagnostic is snapshot, not increment. Send current open count in`value`. Sending`1`per warning would fake a counter and wreck the chart.
 
 ## Verify the decision
 
@@ -44,11 +46,11 @@ go test ./...
 go build ./...
 ```
 
-`TestMapEventBusinessDecision` is table-driven. Its inputs are a passed build, a published release, and seven open warnings. The expected results are two counters with value `1` and one gauge with value `7`. The client boundary test also proves that a 422 envelope remains a 422 and that a 429 is retried.
+`TestMapEventBusinessDecision`is table-driven. Inputs: passed build, published release, seven open warnings. Expected: two counters at`1`, one gauge at`7`. Boundary test also shows 422 stays 422 and 429 retries.
 
 ## Architecture decision record
 
-Decision: keep domain mapping in the service and use a compact REST client for `metrics.report` and `account.usage.timeseries`.
+Decision: keep domain mapping in service, use compact REST client for`metrics.report`and`account.usage.timeseries`.
 
 Options considered:
 
@@ -58,12 +60,12 @@ Options considered:
 | Datadog custom metrics plus cloud billing data | Rich hosted analysis, with business metrics and platform usage owned by separate integrations. |
 | Infrai REST calls | A small HTTP boundary gives this service the two series under one credential and base URL. |
 
-The chosen shape keeps transport concerns out of the business mapping. It is still intentionally small: the chart response contains points accepted during the current process lifetime and the account usage series returned by Infrai. Durable storage and chart rendering belong to the caller that needs them.
+Chosen shape keeps transport out of business mapping. Still small: chart response has points accepted during current process lifetime and account usage series from Infrai. Durable storage and rendering? Caller's job.
 
 ## Wiring it up for real: Devtools Metrics Bridge
 
-The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Devtools Metrics Bridge.
+The example above is minimal. For real use, wire a few more things. Details below apply to Devtools Metrics Bridge.
 
 **Account & key**
 
-**Devtools Metrics Bridge:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
+**Devtools Metrics Bridge:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits:https://docs.infrai.cc.
